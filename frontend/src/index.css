@@ -1,0 +1,28 @@
+/* src/index.css - Глобальные стили для KOSMA ERP: Tailwind + Bootstrap + кастомные */
+
+/* Tailwind директивы (обязательны для интеграции Tailwind в проект) */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Bootstrap уже импортируется в компонентах, но если нужно глобально - добавить здесь */
+/* @import 'bootstrap/dist/css/bootstrap.min.css'; */
+
+/* Кастомные глобальные стили для consistency с HTML-итерациями */
+body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    color: #212529;
+}
+
+/* Дополнительные стили для модалов, таблиц и форм (из HTML-итераций) */
+.modal-dialog {
+    max-width: 640px; /* Для форм типа Плательщик / Контрагент */
+}
+
+.form-floating > label {
+    opacity: 0.7;
+}
+
+/* ... (добавьте любые другие глобальные стили из ваших HTML, если нужно) */

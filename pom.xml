@@ -2,94 +2,139 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <!-- Основная модель POM: стандарт 4.0.0 -->
     <modelVersion>4.0.0</modelVersion>
+
+    <!-- Идентификаторы проекта: groupId, artifactId, version и name для уникальной идентификации в Maven -->
     <groupId>ru.kosma</groupId>
     <artifactId>kosma-erp</artifactId>
     <version>1.0.0</version>
     <name>KOSMA ERP BPM</name>
 
+    <!-- Родительский проект: Spring Boot starter parent для автоматического управления версиями зависимостей и плагинов -->
+    <!-- Версия 4.0.3 актуальна на март 2026 (релиз 19 февраля 2026; OSS-поддержка до декабря 2026; commercial до декабря 2027) -->
+    <!-- Мои знания от января 2025 — это может измениться; проверено через web_search -->
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.10</version>  <!-- или 3.4.0, если уже вышла -->
-        <relativePath/>
+        <version>4.0.3</version>
     </parent>
 
+    <!-- Свойства проекта: кастомные переменные для версий и директорий -->
     <properties>
-        <java.version>21</java.version>
-        <frontend.directory>frontend</frontend.directory>
-        <maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
+        <java.version>21</java.version> <!-- Версия Java для компиляции и запуска (поддерживается Spring Boot 4.0+) -->
+        <frontend.directory>frontend</frontend.directory> <!-- Директория фронтенда для сборки и копирования файлов -->
+        <maven-resources-plugin.version>3.4.0</maven-resources-plugin.version> <!-- Актуальная версия maven-resources-plugin на март 2026 (релиз ноябрь 2025; совместима с Maven 3.6.3+) -->
     </properties>
 
+    <!-- Зависимости проекта: библиотеки для веб, валидации, JPA и базы данных -->
     <dependencies>
-        <!-- Обязательно для REST + валидация -->
+        <!-- Spring Boot starter для веб-приложения (REST API, контроллеры, Tomcat по умолчанию) -->
+        <!-- Версия управляется parent 4.0.3 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <!-- Spring Boot starter для валидации (Jakarta Validation для DTO и форм) -->
+        <!-- Версия управляется parent 4.0.3 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
-        <!-- Для будущего: JPA + PostgreSQL / H2 -->
+        <!-- Spring Boot starter для JPA (ORM, Hibernate по умолчанию, для работы с БД) -->
+        <!-- Версия управляется parent 4.0.3 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
+        <!-- H2 database для разработки/тестирования (in-memory или файловая БД) -->
+        <!-- Актуальная версия 2.4.240 на март 2026 (релиз 22 сентября 2025; совместима с Spring Boot 4.0+) -->
+        <!-- Scope runtime: нужна только во время выполнения, не в компиляции -->
+        <!-- Мои знания от января 2025 — это может измениться; проверено через web_search -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
+            <version>2.4.240</version>
             <scope>runtime</scope>
         </dependency>
     </dependencies>
 
+    <!-- Сборка проекта: плагины для выполнения команд, копирования файлов и сборки JAR -->
     <build>
         <plugins>
-            <!-- 1. Сборка фронтенда при Maven build -->
+            <!-- Exec Maven Plugin для запуска внешних команд (npm для фронтенда) -->
+            <!-- Актуальная версия 3.6.3 на март 2026 (релиз 21 декабря 2025; совместима с Maven 3.6.3+ и Node 20+) -->
+            <!-- Замена frontend-maven-plugin для избежания ERR_REQUIRE_ESM и совместимости с новыми Node/npm -->
+            <!-- Мои знания от января 2025 — это может измениться; проверено через web_search -->
             <plugin>
-                <groupId>com.github.eirslett</groupId>
-                <artifactId>frontend-maven-plugin</artifactId>
-                <version>1.15.4</version>
-                <configuration>
-                    <nodeVersion>v22.13.0</nodeVersion>
-                    <workingDirectory>${frontend.directory}</workingDirectory>
-                    <installDirectory>${frontend.directory}</installDirectory>
-                </configuration>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.6.3</version>
+
                 <executions>
+                    <!-- Очистка node_modules перед сборкой (опционально, для избежания EPERM на Windows) -->
                     <execution>
-                        <id>install-node-and-npm</id>
-                        <goals><goal>install-node-and-npm</goal></goals>
-                    </execution>
-                    <execution>
-                        <id>npm-install</id>
-                        <goals><goal>npm</goal></goals>
-                        <configuration><arguments>ci</arguments></configuration>
-                    </execution>
-                    <execution>
-                        <id>npm-run-build</id>
-                        <goals><goal>npm</goal></goals>
+                        <id>clean-node-modules</id>
+                        <phase>clean</phase> <!-- Фаза: во время mvn clean -->
+                        <goals><goal>exec</goal></goals>
                         <configuration>
-                            <arguments>run build</arguments>
+                            <workingDirectory>${frontend.directory}</workingDirectory> <!-- Директория: frontend -->
+                            <executable>cmd</executable> <!-- Для Windows: cmd /c rmdir -->
+                            <arguments>
+                                <argument>/c</argument>
+                                <argument>rmdir /s /q node_modules</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+
+                    <!-- Установка зависимостей фронта (npm ci) — чистая установка без lock-файла -->
+                    <execution>
+                        <id>npm-ci</id>
+                        <phase>generate-resources</phase> <!-- Фаза: перед генерацией ресурсов -->
+                        <goals><goal>exec</goal></goals>
+                        <configuration>
+                            <workingDirectory>${frontend.directory}</workingDirectory> <!-- Директория: frontend -->
+                            <executable>npm</executable> <!-- Команда: npm (предполагает глобальный Node через nvm) -->
+                            <arguments>
+                                <argument>ci</argument> <!-- Аргумент: ci для чистой установки -->
+                            </arguments>
+                        </configuration>
+                    </execution>
+
+                    <!-- Сборка фронта (npm run build) — создаёт dist для статических файлов -->
+                    <execution>
+                        <id>npm-build</id>
+                        <phase>generate-resources</phase> <!-- Фаза: перед генерацией ресурсов -->
+                        <goals><goal>exec</goal></goals>
+                        <configuration>
+                            <workingDirectory>${frontend.directory}</workingDirectory> <!-- Директория: frontend -->
+                            <executable>npm</executable> <!-- Команда: npm -->
+                            <arguments>
+                                <argument>run</argument> <!-- Аргументы: run build -->
+                                <argument>build</argument>
+                            </arguments>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
 
-            <!-- Копирование dist в static -->
+            <!-- Maven Resources Plugin для копирования собранного фронта (dist) в static для Spring Boot -->
+            <!-- Актуальная версия 3.4.0 на март 2026 (релиз ноябрь 2025; совместима с Maven 3.6.3+) -->
+            <!-- Мои знания от января 2025 — это может измениться; проверено через web_search -->
             <plugin>
                 <artifactId>maven-resources-plugin</artifactId>
-                <version>3.3.1</version>
+                <version>3.4.0</version>
                 <executions>
                     <execution>
                         <id>copy-frontend</id>
-                        <phase>generate-resources</phase>
+                        <phase>generate-resources</phase> <!-- Фаза: после сборки фронта -->
                         <goals><goal>copy-resources</goal></goals>
                         <configuration>
-                            <outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
+                            <outputDirectory>${project.build.outputDirectory}/static</outputDirectory> <!-- Цель: resources/static (для Spring Boot) -->
                             <resources>
                                 <resource>
-                                    <directory>${frontend.directory}/dist</directory>
-                                    <filtering>false</filtering>
+                                    <directory>${frontend.directory}/dist</directory> <!-- Источник: frontend/dist -->
+                                    <filtering>false</filtering> <!-- Без фильтрации (копировать как есть) -->
                                 </resource>
                             </resources>
                         </configuration>
@@ -97,6 +142,8 @@
                 </executions>
             </plugin>
 
+            <!-- Spring Boot Maven Plugin для сборки executable JAR/WAR и запуска (mvn spring-boot:run) -->
+            <!-- Версия управляется parent 4.0.3; совместима с остальным -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

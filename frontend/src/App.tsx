@@ -1,18 +1,18 @@
 // frontend/src/App.tsx
-import { Routes, Route, Link } from 'react-router-dom';
-import Sidebar from '@/components/Sidebar';
-import PayerForm from '@/components/PayerForm';
-import Vedomost from '@/components/Vedomost';
-import InvoiceForm from '@/components/InvoiceForm';
+import { Routes, Route } from 'react-router-dom';
+import Sidebar from './components/Sidebar';
+import PayerForm from './components/PayerForm';
+import Vedomost from './components/Vedomost';
+import InvoiceForm from './components/InvoiceForm';
+import CounterpartyForm from './components/CounterpartyForm';
 
-// ЗАГОТОВКИ ДЛЯ БУДУЩИХ UI
-import DeviationCard from '@/components/stubs/DeviationCard';
-    import DeviationRegistry from '@/components/stubs/DeviationRegistry';
-import OrderToCounterparty from '@/components/stubs/OrderToCounterparty';
-import OrdersRegistry from '@/components/stubs/OrdersRegistry';
-import InvoicesRegistry from '@/components/stubs/InvoicesRegistry';
-import Memo from '@/components/stubs/Memo';
-import MemosRegistry from '@/components/stubs/MemosRegistry';
+import DeviationCard from './components/stubs/DeviationCard';
+import DeviationRegistry from './components/stubs/DeviationRegistry';
+import OrderToCounterparty from './components/stubs/OrderToCounterparty';
+import OrdersRegistry from './components/stubs/OrdersRegistry';
+import InvoicesRegistry from './components/stubs/InvoicesRegistry';
+import Memo from './components/stubs/Memo';
+import MemosRegistry from './components/stubs/MemosRegistry';
 
 function App() {
     return (
@@ -23,6 +23,7 @@ function App() {
                     <Route path="/" element={<Vedomost />} />
                     <Route path="/payer" element={<PayerForm />} />
                     <Route path="/invoice" element={<InvoiceForm />} />
+                    <Route path="/counterparty" element={<CounterpartyForm />} />
 
                     {/* ЗАГОТОВКИ */}
                     <Route path="/deviation-card" element={<DeviationCard />} />

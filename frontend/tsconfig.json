@@ -3,6 +3,7 @@
     "allowImportingTsExtensions": true,          // ← это решает импорт .tsx без ошибки
     "noEmit": true,                               // vite сам компилирует
     "jsx": "react-jsx",
+    "jsxImportSource": "react", // Для jsx-runtime
     "moduleResolution": "bundler",
     "module": "ESNext",
     "target": "ES2022",
