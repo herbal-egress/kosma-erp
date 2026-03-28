@@ -12,12 +12,11 @@
     <name>KOSMA ERP BPM</name>
 
     <!-- Родительский проект: Spring Boot starter parent для автоматического управления версиями зависимостей и плагинов -->
-    <!-- Версия 4.0.3 актуальна на март 2026 (релиз 19 февраля 2026; OSS-поддержка до декабря 2026; commercial до декабря 2027) -->
-    <!-- Мои знания от января 2025 — это может измениться; проверено через web_search -->
+
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.3</version>
+        <version>3.3.5</version>
     </parent>
 
     <!-- Свойства проекта: кастомные переменные для версий и директорий -->
