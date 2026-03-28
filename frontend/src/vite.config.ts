@@ -1,23 +1,27 @@
-// frontend/vite.config.ts
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import tsconfigPaths from 'vite-tsconfig-paths'; // Новый плагин для sync tsconfig paths
-import { resolve } from 'path';
+import tsconfigPaths from 'vite-tsconfig-paths';
+import tailwindcss from '@tailwindcss/vite';
+import { resolve } from 'node:path';
 
+// Конфигурация Vite для фронтенда ERP.
+// Подключены плагины React, Tailwind v4 и алиасы путей из tsconfig.
 export default defineConfig({
-    plugins: [react(), tsconfigPaths()],
+    plugins: [react(), tailwindcss(), tsconfigPaths()],
     resolve: {
         alias: {
-            '@': resolve(__dirname, 'src'), // Явное разрешение для Rollup
-        },
+            '@': resolve(__dirname, 'src')
+        }
     },
     build: {
         outDir: 'dist',
+        sourcemap: true
     },
     server: {
         port: 5173,
         strictPort: true,
-        open: true,
-        proxy: { '/api': 'http://localhost:8080' },
-    },
+        proxy: {
+            '/api': 'http://localhost:8080'
+        }
+    }
 });

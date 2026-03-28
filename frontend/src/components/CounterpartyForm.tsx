@@ -1,10 +1,26 @@
-// src/components/CounterpartyForm.tsx
-import { useState, useEffect, useRef } from 'react';
-import { Save, X, Plus, Trash2 } from 'lucide-react';
-import 'bootstrap/dist/css/bootstrap.min.css';
+import { useEffect, useRef, useState } from 'react';
+import { Plus, Save, Trash2, X } from 'lucide-react';
+
+type CounterpartyFormData = {
+    type: string;
+    status: string;
+    name: string;
+    inn: string;
+    kpp: string;
+    ogrn: string;
+    okpo: string;
+    legalAddress: string;
+    actualAddress: string;
+    postalAddress: string;
+    phone: string;
+    email: string;
+    website: string;
+    director: string;
+    comment: string;
+};
 
 export default function CounterpartyForm() {
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<CounterpartyFormData>({
         type: 'Поставщик',
         status: 'Активен',
         name: '',
@@ -19,60 +35,57 @@ export default function CounterpartyForm() {
         email: '',
         website: '',
         director: '',
-        comment: '',
+        comment: ''
     });
 
     const [goodsGroups, setGoodsGroups] = useState<string[]>(['']);
     const [dirty, setDirty] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
-    const [forceClose, setForceClose] = useState(false);
 
     const formRef = useRef<HTMLFormElement>(null);
     const initialSnapshot = useRef<string>('');
 
-    // ─────────────────────────────────────────────────────────────
-    // Снимок состояния формы для проверки изменений
-    // ─────────────────────────────────────────────────────────────
+    // Формируем сериализованный снимок формы и массива групп товаров.
     const getSnapshot = () => {
-        if (!formRef.current) return '{}';
+        if (!formRef.current) {
+            return '{}';
+        }
 
-        const fd = new FormData(formRef.current);
-        const formObj = Object.fromEntries(fd);
+        const formDataEntries = new FormData(formRef.current);
+        const formObject = Object.fromEntries(formDataEntries);
 
         return JSON.stringify({
-            form: formObj,
-            goods: goodsGroups,
+            form: formObject,
+            goodsGroups
         });
     };
 
+    // Запоминаем начальный снимок формы после первого рендера.
     useEffect(() => {
-        // Сохраняем начальное состояние через небольшую задержку
-        const timer = setTimeout(() => {
+        const timerId = window.setTimeout(() => {
             initialSnapshot.current = getSnapshot();
         }, 120);
 
-        return () => clearTimeout(timer);
+        return () => {
+            window.clearTimeout(timerId);
+        };
     }, []);
 
-    // ─────────────────────────────────────────────────────────────
-    // Отслеживание изменений
-    // ─────────────────────────────────────────────────────────────
     const markDirty = () => {
         setDirty(true);
     };
 
-    const handleInputChange = (
-        e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-    ) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
+    const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name, value } = event.target;
+        setFormData((prev) => ({
+            ...prev,
+            [name]: value
+        }));
         markDirty();
     };
 
     const handleGoodsChange = (index: number, value: string) => {
-        const newGroups = [...goodsGroups];
-        newGroups[index] = value;
-        setGoodsGroups(newGroups);
+        setGoodsGroups((prev) => prev.map((group, groupIndex) => (groupIndex === index ? value : group)));
         markDirty();
     };
 
@@ -82,31 +95,30 @@ export default function CounterpartyForm() {
     };
 
     const removeGoodsGroup = (index: number) => {
-        setGoodsGroups((prev) => prev.filter((_, i) => i !== index));
+        setGoodsGroups((prev) => {
+            const next = prev.filter((_, groupIndex) => groupIndex !== index);
+            return next.length > 0 ? next : [''];
+        });
         markDirty();
     };
 
-    // ─────────────────────────────────────────────────────────────
-    // Защита от случайного закрытия / ухода со страницы
-    // ─────────────────────────────────────────────────────────────
+    // Блокируем случайное закрытие вкладки браузера при наличии изменений.
     useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
             if (dirty && getSnapshot() !== initialSnapshot.current) {
-                e.preventDefault();
-                e.returnValue = '';
+                event.preventDefault();
+                event.returnValue = '';
             }
         };
 
         window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [dirty]);
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [dirty, goodsGroups]);
 
-    // ─────────────────────────────────────────────────────────────
-    // Логика закрытия формы с подтверждением
-    // ─────────────────────────────────────────────────────────────
     const handleClose = () => {
         if (!dirty || getSnapshot() === initialSnapshot.current) {
-            // можно закрыть без вопросов
             window.history.back();
             return;
         }
@@ -116,7 +128,6 @@ export default function CounterpartyForm() {
 
     const confirmClose = () => {
         setShowConfirm(false);
-        setForceClose(true);
         setDirty(false);
         window.history.back();
     };
@@ -125,85 +136,77 @@ export default function CounterpartyForm() {
         setShowConfirm(false);
     };
 
-    // ─────────────────────────────────────────────────────────────
-    // Сохранение (демо-валидация + заглушка под API)
-    // ─────────────────────────────────────────────────────────────
-    const handleSave = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSave = (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
 
         if (!formRef.current?.checkValidity()) {
             formRef.current?.classList.add('was-validated');
             return;
         }
 
-        // Здесь в будущем будет fetch('/api/counterparties', { method: 'POST', body: ... })
         alert('Карточка контрагента сохранена (демо-режим)');
-
         setDirty(false);
-        initialSnapshot.current = getSnapshot(); // сбрасываем "грязность"
+        initialSnapshot.current = getSnapshot();
     };
 
     return (
-        <div className="container py-5">
-            <div className="card shadow-lg border-0 rounded-4">
-                <div className="card-header bg-primary text-white text-center py-4 position-relative">
-                    <h2 className="mb-0">Создание карточки контрагента</h2>
+        <div className="container py-5" title="Форма создания карточки контрагента">
+            <div className="card shadow-lg border-0 rounded-4" title="Карточка формы контрагента">
+                <div className="card-header bg-primary text-white text-center py-4 position-relative" title="Заголовок формы контрагента">
+                    <h2 className="mb-0" title="Название формы">Создание карточки контрагента</h2>
                     <button
                         type="button"
                         className="btn-close btn-close-white position-absolute top-0 end-0 mt-3 me-3"
                         onClick={handleClose}
                         aria-label="Закрыть"
-                        title="Закрыть форму (при несохранённых изменениях будет подтверждение)"
-                    ></button>
+                        title="Закрыть форму и вернуться назад"
+                    />
                 </div>
 
-                <div className="card-body p-5">
-                    <form ref={formRef} onSubmit={handleSave} noValidate>
-                        {/* ─────────────────────────────────────────────────────────────
-                Основные поля
-            ───────────────────────────────────────────────────────────── */}
-                        <div className="row g-3 mb-4">
-                            <div className="col-md-6">
-                                <div className="form-floating">
+                <div className="card-body p-5" title="Основное содержимое формы контрагента">
+                    <form ref={formRef} onSubmit={handleSave} noValidate title="Форма ввода данных контрагента">
+                        <div className="row g-3 mb-4" title="Блок типа и статуса контрагента">
+                            <div className="col-md-6" title="Поле типа контрагента">
+                                <div className="form-floating" title="Контейнер поля типа контрагента">
                                     <select
                                         className="form-select"
                                         name="type"
                                         value={formData.type}
                                         onChange={handleInputChange}
                                         required
-                                        title="Тип контрагента — влияет на доступные операции в системе"
+                                        title="Выберите тип контрагента"
                                     >
-                                        <option value="Поставщик">Поставщик</option>
-                                        <option value="Покупатель">Покупатель</option>
-                                        <option value="Подрядчик">Подрядчик</option>
-                                        <option value="Прочий">Прочий</option>
+                                        <option value="Поставщик" title="Тип: поставщик">Поставщик</option>
+                                        <option value="Покупатель" title="Тип: покупатель">Покупатель</option>
+                                        <option value="Подрядчик" title="Тип: подрядчик">Подрядчик</option>
+                                        <option value="Прочий" title="Тип: прочий">Прочий</option>
                                     </select>
-                                    <label>Тип контрагента *</label>
+                                    <label title="Подпись поля типа">Тип контрагента *</label>
                                 </div>
                             </div>
 
-                            <div className="col-md-6">
-                                <div className="form-floating">
+                            <div className="col-md-6" title="Поле статуса карточки">
+                                <div className="form-floating" title="Контейнер поля статуса">
                                     <select
                                         className="form-select"
                                         name="status"
                                         value={formData.status}
                                         onChange={handleInputChange}
                                         required
-                                        title="Статус карточки — влияет на возможность проведения операций"
+                                        title="Выберите текущий статус карточки"
                                     >
-                                        <option value="Активен">Активен</option>
-                                        <option value="Неактивен">Неактивен</option>
-                                        <option value="На проверке">На проверке</option>
+                                        <option value="Активен" title="Статус: активен">Активен</option>
+                                        <option value="Неактивен" title="Статус: неактивен">Неактивен</option>
+                                        <option value="На проверке" title="Статус: на проверке">На проверке</option>
                                     </select>
-                                    <label>Статус *</label>
+                                    <label title="Подпись поля статуса">Статус *</label>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="row g-3 mb-4">
-                            <div className="col-md-12">
-                                <div className="form-floating">
+                        <div className="row g-3 mb-4" title="Блок названия контрагента">
+                            <div className="col-md-12" title="Поле полного наименования">
+                                <div className="form-floating" title="Контейнер поля наименования">
                                     <input
                                         type="text"
                                         className="form-control"
@@ -212,16 +215,16 @@ export default function CounterpartyForm() {
                                         onChange={handleInputChange}
                                         placeholder=" "
                                         required
-                                        title="Полное наименование контрагента (из ЕГРЮЛ/ЕГРИП)"
+                                        title="Введите полное юридическое наименование"
                                     />
-                                    <label>Наименование *</label>
+                                    <label title="Подпись поля наименования">Наименование *</label>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="row g-3 mb-4">
-                            <div className="col-md-4">
-                                <div className="form-floating">
+                        <div className="row g-3 mb-4" title="Блок регистрационных реквизитов">
+                            <div className="col-md-3" title="Поле ИНН">
+                                <div className="form-floating" title="Контейнер поля ИНН">
                                     <input
                                         type="text"
                                         className="form-control"
@@ -232,13 +235,14 @@ export default function CounterpartyForm() {
                                         pattern="\d{10}|\d{12}"
                                         maxLength={12}
                                         required
-                                        title="ИНН — 10 или 12 цифр"
+                                        title="Введите ИНН (10 или 12 цифр)"
                                     />
-                                    <label>ИНН *</label>
+                                    <label title="Подпись поля ИНН">ИНН *</label>
                                 </div>
                             </div>
-                            <div className="col-md-4">
-                                <div className="form-floating">
+
+                            <div className="col-md-3" title="Поле КПП">
+                                <div className="form-floating" title="Контейнер поля КПП">
                                     <input
                                         type="text"
                                         className="form-control"
@@ -248,13 +252,14 @@ export default function CounterpartyForm() {
                                         placeholder=" "
                                         pattern="\d{9}"
                                         maxLength={9}
-                                        title="КПП — 9 цифр (необязательно для ИП)"
+                                        title="Введите КПП (9 цифр, для ИП необязательно)"
                                     />
-                                    <label>КПП</label>
+                                    <label title="Подпись поля КПП">КПП</label>
                                 </div>
                             </div>
-                            <div className="col-md-4">
-                                <div className="form-floating">
+
+                            <div className="col-md-3" title="Поле ОГРН/ОГРНИП">
+                                <div className="form-floating" title="Контейнер поля ОГРН/ОГРНИП">
                                     <input
                                         type="text"
                                         className="form-control"
@@ -263,45 +268,57 @@ export default function CounterpartyForm() {
                                         onChange={handleInputChange}
                                         placeholder=" "
                                         pattern="\d{13}|\d{15}"
-                                        title="ОГРН / ОГРНИП"
+                                        title="Введите ОГРН (13 цифр) или ОГРНИП (15 цифр)"
                                     />
-                                    <label>ОГРН / ОГРНИП</label>
+                                    <label title="Подпись поля ОГРН/ОГРНИП">ОГРН / ОГРНИП</label>
+                                </div>
+                            </div>
+
+                            <div className="col-md-3" title="Поле ОКПО">
+                                <div className="form-floating" title="Контейнер поля ОКПО">
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        name="okpo"
+                                        value={formData.okpo}
+                                        onChange={handleInputChange}
+                                        placeholder=" "
+                                        title="Введите код ОКПО при наличии"
+                                    />
+                                    <label title="Подпись поля ОКПО">ОКПО</label>
                                 </div>
                             </div>
                         </div>
 
-                        {/* ─────────────────────────────────────────────────────────────
-                Группы товаров / услуг
-            ───────────────────────────────────────────────────────────── */}
-                        <div className="mb-4">
-                            <div className="d-flex justify-content-between align-items-center mb-3">
-                                <h5 className="mb-0">Группы товаров / услуг</h5>
+                        <div className="mb-4" title="Блок групп товаров и услуг">
+                            <div className="d-flex justify-content-between align-items-center mb-3" title="Заголовок раздела групп товаров">
+                                <h5 className="mb-0" title="Название раздела">Группы товаров / услуг</h5>
                                 <button
                                     type="button"
                                     className="btn btn-sm btn-outline-primary"
                                     onClick={addGoodsGroup}
-                                    title="Добавить ещё одну группу товаров / услуг"
+                                    title="Добавить новую группу товаров или услуг"
                                 >
                                     <Plus size={16} className="me-1" /> Добавить
                                 </button>
                             </div>
 
                             {goodsGroups.map((group, index) => (
-                                <div key={index} className="input-group mb-2">
+                                <div key={`group-${index}`} className="input-group mb-2" title={`Строка группы товаров №${index + 1}`}>
                                     <input
                                         type="text"
                                         className="form-control"
                                         value={group}
-                                        onChange={(e) => handleGoodsChange(index, e.target.value)}
-                                        placeholder="Например: Металлопрокат, Гидроцилиндры, Электродвигатели..."
-                                        title="Группа товаров / услуг, с которыми работает данный контрагент"
+                                        onChange={(event) => handleGoodsChange(index, event.target.value)}
+                                        placeholder="Например: Металлопрокат, Гидроцилиндры, Электродвигатели"
+                                        title="Введите группу товаров/услуг для контрагента"
                                     />
                                     <button
                                         type="button"
                                         className="btn btn-outline-danger"
                                         onClick={() => removeGoodsGroup(index)}
                                         disabled={goodsGroups.length === 1}
-                                        title="Удалить группу"
+                                        title="Удалить текущую группу"
                                     >
                                         <Trash2 size={16} />
                                     </button>
@@ -309,12 +326,9 @@ export default function CounterpartyForm() {
                             ))}
                         </div>
 
-                        {/* ─────────────────────────────────────────────────────────────
-                Контактные и адресные данные
-            ───────────────────────────────────────────────────────────── */}
-                        <div className="row g-3 mb-4">
-                            <div className="col-md-12">
-                                <div className="form-floating">
+                        <div className="row g-3 mb-4" title="Блок адресов и контактов">
+                            <div className="col-md-4" title="Поле юридического адреса">
+                                <div className="form-floating" title="Контейнер поля юридического адреса">
                   <textarea
                       className="form-control"
                       name="legalAddress"
@@ -322,14 +336,44 @@ export default function CounterpartyForm() {
                       onChange={handleInputChange}
                       placeholder=" "
                       style={{ height: '80px' }}
-                      title="Юридический адрес (из ЕГРЮЛ)"
+                      title="Введите юридический адрес"
                   />
-                                    <label>Юридический адрес</label>
+                                    <label title="Подпись юридического адреса">Юридический адрес</label>
                                 </div>
                             </div>
 
-                            <div className="col-md-6">
-                                <div className="form-floating">
+                            <div className="col-md-4" title="Поле фактического адреса">
+                                <div className="form-floating" title="Контейнер поля фактического адреса">
+                  <textarea
+                      className="form-control"
+                      name="actualAddress"
+                      value={formData.actualAddress}
+                      onChange={handleInputChange}
+                      placeholder=" "
+                      style={{ height: '80px' }}
+                      title="Введите фактический адрес"
+                  />
+                                    <label title="Подпись фактического адреса">Фактический адрес</label>
+                                </div>
+                            </div>
+
+                            <div className="col-md-4" title="Поле почтового адреса">
+                                <div className="form-floating" title="Контейнер поля почтового адреса">
+                  <textarea
+                      className="form-control"
+                      name="postalAddress"
+                      value={formData.postalAddress}
+                      onChange={handleInputChange}
+                      placeholder=" "
+                      style={{ height: '80px' }}
+                      title="Введите почтовый адрес"
+                  />
+                                    <label title="Подпись почтового адреса">Почтовый адрес</label>
+                                </div>
+                            </div>
+
+                            <div className="col-md-4" title="Поле телефона">
+                                <div className="form-floating" title="Контейнер поля телефона">
                                     <input
                                         type="text"
                                         className="form-control"
@@ -337,14 +381,14 @@ export default function CounterpartyForm() {
                                         value={formData.phone}
                                         onChange={handleInputChange}
                                         placeholder=" "
-                                        title="Телефон(ы) в любом формате"
+                                        title="Введите номер телефона"
                                     />
-                                    <label>Телефон</label>
+                                    <label title="Подпись телефона">Телефон</label>
                                 </div>
                             </div>
 
-                            <div className="col-md-6">
-                                <div className="form-floating">
+                            <div className="col-md-4" title="Поле email">
+                                <div className="form-floating" title="Контейнер поля email">
                                     <input
                                         type="email"
                                         className="form-control"
@@ -352,45 +396,71 @@ export default function CounterpartyForm() {
                                         value={formData.email}
                                         onChange={handleInputChange}
                                         placeholder=" "
-                                        title="Основной e-mail для переписки"
+                                        title="Введите основной e-mail"
                                     />
-                                    <label>E-mail</label>
+                                    <label title="Подпись email">E-mail</label>
+                                </div>
+                            </div>
+
+                            <div className="col-md-4" title="Поле сайта">
+                                <div className="form-floating" title="Контейнер поля сайта">
+                                    <input
+                                        type="url"
+                                        className="form-control"
+                                        name="website"
+                                        value={formData.website}
+                                        onChange={handleInputChange}
+                                        placeholder=" "
+                                        title="Введите адрес сайта, начиная с https://"
+                                    />
+                                    <label title="Подпись сайта">Сайт</label>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Комментарий */}
-                        <div className="mb-4">
-                            <div className="form-floating">
-                <textarea
-                    className="form-control"
-                    name="comment"
-                    value={formData.comment}
-                    onChange={handleInputChange}
-                    placeholder=" "
-                    style={{ height: '120px' }}
-                    maxLength={1000}
-                    title="Внутренние заметки, особенности сотрудничества, риски и т.д."
-                />
-                                <label>Комментарий / примечания</label>
+                        <div className="row g-3 mb-4" title="Блок ответственного лица и комментария">
+                            <div className="col-md-6" title="Поле ФИО руководителя">
+                                <div className="form-floating" title="Контейнер поля руководителя">
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        name="director"
+                                        value={formData.director}
+                                        onChange={handleInputChange}
+                                        placeholder=" "
+                                        title="Введите ФИО руководителя"
+                                    />
+                                    <label title="Подпись поля руководителя">Руководитель</label>
+                                </div>
+                            </div>
+
+                            <div className="col-md-6" title="Поле комментария">
+                                <div className="form-floating" title="Контейнер поля комментария">
+                  <textarea
+                      className="form-control"
+                      name="comment"
+                      value={formData.comment}
+                      onChange={handleInputChange}
+                      placeholder=" "
+                      style={{ height: '120px' }}
+                      maxLength={1000}
+                      title="Введите внутренний комментарий по контрагенту"
+                  />
+                                    <label title="Подпись поля комментария">Комментарий / примечания</label>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Кнопки действий */}
-                        <div className="d-flex gap-3 justify-content-end mt-5">
+                        <div className="d-flex gap-3 justify-content-end mt-5" title="Панель действий формы">
                             <button
                                 type="button"
                                 className="btn btn-outline-secondary"
                                 onClick={handleClose}
-                                title="Отменить создание и вернуться назад"
+                                title="Отменить создание карточки и вернуться назад"
                             >
                                 <X size={18} className="me-2" /> Отмена
                             </button>
-                            <button
-                                type="submit"
-                                className="btn btn-primary"
-                                title="Сохранить карточку контрагента в базе"
-                            >
+                            <button type="submit" className="btn btn-primary" title="Сохранить карточку контрагента">
                                 <Save size={18} className="me-2" /> Сохранить
                             </button>
                         </div>
@@ -398,38 +468,31 @@ export default function CounterpartyForm() {
                 </div>
             </div>
 
-            {/* Модальное окно подтверждения закрытия */}
             {showConfirm && (
                 <div
                     className="modal fade show"
                     style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}
                     tabIndex={-1}
+                    title="Модальное окно подтверждения закрытия"
                 >
-                    <div className="modal-dialog modal-dialog-centered">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <h5 className="modal-title">Несохранённые изменения</h5>
-                                <button
-                                    type="button"
-                                    className="btn-close"
-                                    onClick={cancelClose}
-                                ></button>
+                    <div className="modal-dialog modal-dialog-centered" title="Контейнер модального окна">
+                        <div className="modal-content" title="Содержимое модального окна">
+                            <div className="modal-header" title="Шапка модального окна">
+                                <h5 className="modal-title" title="Заголовок предупреждения">Несохранённые изменения</h5>
+                                <button type="button" className="btn-close" onClick={cancelClose} title="Закрыть окно предупреждения" />
                             </div>
-                            <div className="modal-body">
+                            <div className="modal-body" title="Текст предупреждения">
                                 Есть несохранённые изменения. Закрыть без сохранения?
                             </div>
-                            <div className="modal-footer">
-                                <button
-                                    type="button"
-                                    className="btn btn-secondary"
-                                    onClick={cancelClose}
-                                >
+                            <div className="modal-footer" title="Кнопки подтверждения действия">
+                                <button type="button" className="btn btn-secondary" onClick={cancelClose} title="Отменить закрытие формы">
                                     Отменить
                                 </button>
                                 <button
                                     type="button"
                                     className="btn btn-danger"
                                     onClick={confirmClose}
+                                    title="Подтвердить закрытие без сохранения"
                                 >
                                     Закрыть без сохранения
                                 </button>

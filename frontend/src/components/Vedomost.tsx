@@ -1,419 +1,566 @@
-// src/components/Vedomost.tsx
-// Полный перенос UI «Ведомость оборудования и материалов» — итерация 016
-// Сохранены: вкладки, горизонтальная прокрутка кнопками, структура таблиц, модальные окна, dark-тема
-// Без DataTables — чистый React + Bootstrap 5 + refs
+import { useMemo, useRef, useState } from 'react';
+import {
+    ChevronLeft,
+    ChevronRight,
+    Sun,
+    Moon,
+    Search,
+    Plus,
+    Download,
+    Upload
+} from 'lucide-react';
 
-import { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Sun, Moon, Search, Plus, FileText, FilePlus, Download, Upload, Trash2 } from 'lucide-react';
-import 'bootstrap/dist/css/bootstrap.min.css';
+// Типы данных для строк ведомости.
+type FullRow = {
+    id: number;
+    code: string;
+    name: string;
+    unit: string;
+    projectQty: number;
+    producedQty: number;
+    purchasedQty: number;
+    remainQty: number;
+    status: string;
+    owner: string;
+    deadline: string;
+    note: string;
+};
+
+type ManufactureRow = {
+    id: number;
+    code: string;
+    name: string;
+    unit: string;
+    planQty: number;
+    producedQty: number;
+    remainQty: number;
+    workshop: string;
+    status: string;
+    plannedDate: string;
+    factDate: string;
+};
+
+type PurchaseRow = {
+    id: number;
+    code: string;
+    name: string;
+    unit: string;
+    planQty: number;
+    orderedQty: number;
+    deliveredQty: number;
+    remainQty: number;
+    supplier: string;
+    status: string;
+    deliveryDate: string;
+};
+
+type ScrollState = {
+    canLeft: boolean;
+    canRight: boolean;
+};
+
+type TabKey = 'full' | 'manufacture' | 'purchase';
+
+const FULL_ROWS: FullRow[] = [
+    {
+        id: 1,
+        code: '1308-001',
+        name: 'Гидроцилиндр подъёма кузова 160×1000',
+        unit: 'шт',
+        projectQty: 4,
+        producedQty: 2,
+        purchasedQty: 0,
+        remainQty: 2,
+        status: 'В работе',
+        owner: 'Иванов И.И.',
+        deadline: '15.04.2026',
+        note: 'Отклонение +12 дн'
+    },
+    {
+        id: 2,
+        code: '1308-002',
+        name: 'Шток хромированный 80×1500',
+        unit: 'шт',
+        projectQty: 6,
+        producedQty: 4,
+        purchasedQty: 0,
+        remainQty: 2,
+        status: 'В работе',
+        owner: 'Петров П.П.',
+        deadline: '18.04.2026',
+        note: 'Ожидается мехобработка'
+    },
+    {
+        id: 3,
+        code: '1308-003',
+        name: 'Уплотнительный комплект УК-160',
+        unit: 'компл',
+        projectQty: 10,
+        producedQty: 0,
+        purchasedQty: 6,
+        remainQty: 4,
+        status: 'Закуп',
+        owner: 'Сидоров С.С.',
+        deadline: '20.04.2026',
+        note: 'Поставка частями'
+    }
+];
+
+const MANUFACTURE_ROWS: ManufactureRow[] = [
+    {
+        id: 1,
+        code: '1308-001',
+        name: 'Гидроцилиндр подъёма кузова 160×1000',
+        unit: 'шт',
+        planQty: 4,
+        producedQty: 2,
+        remainQty: 2,
+        workshop: 'Цех №3',
+        status: 'В работе',
+        plannedDate: '10.03.2026',
+        factDate: '—'
+    },
+    {
+        id: 2,
+        code: '1308-002',
+        name: 'Шток хромированный 80×1500',
+        unit: 'шт',
+        planQty: 6,
+        producedQty: 4,
+        remainQty: 2,
+        workshop: 'Цех №2',
+        status: 'В работе',
+        plannedDate: '12.03.2026',
+        factDate: '—'
+    }
+];
+
+const PURCHASE_ROWS: PurchaseRow[] = [
+    {
+        id: 5,
+        code: '1308-005',
+        name: 'Насос гидравлический 63 л/мин',
+        unit: 'шт',
+        planQty: 2,
+        orderedQty: 2,
+        deliveredQty: 0,
+        remainQty: 2,
+        supplier: 'ООО "ГидроТех"',
+        status: 'Ожидание',
+        deliveryDate: '20.03.2026'
+    },
+    {
+        id: 6,
+        code: '1308-006',
+        name: 'Гидрораспределитель Р80',
+        unit: 'шт',
+        planQty: 3,
+        orderedQty: 3,
+        deliveredQty: 1,
+        remainQty: 2,
+        supplier: 'ООО "ПромГидро"',
+        status: 'Частично поставлено',
+        deliveryDate: '25.03.2026'
+    }
+];
 
 export default function Vedomost() {
     const [darkMode, setDarkMode] = useState(false);
-    const [activeTab, setActiveTab] = useState('full'); // full | manufacture | purchase
+    const [activeTab, setActiveTab] = useState<TabKey>('full');
+    const [searchValue, setSearchValue] = useState('');
 
-    // Refs для контейнеров прокрутки (один на каждую вкладку)
-    const fullScrollRef    = useRef<HTMLDivElement>(null);
-    const manufScrollRef   = useRef<HTMLDivElement>(null);
-    const purchScrollRef   = useRef<HTMLDivElement>(null);
+    // Состояние кнопок прокрутки для каждой вкладки.
+    const [scrollMap, setScrollMap] = useState<Record<TabKey, ScrollState>>({
+        full: { canLeft: false, canRight: true },
+        manufacture: { canLeft: false, canRight: true },
+        purchase: { canLeft: false, canRight: true }
+    });
+    const fullRef = useRef<HTMLDivElement | null>(null);
+    const manufactureRef = useRef<HTMLDivElement | null>(null);
+    const purchaseRef = useRef<HTMLDivElement | null>(null);
 
-    // Функция прокрутки влево/вправо
-    const scroll = (direction: 'left' | 'right', ref: React.RefObject<HTMLDivElement>) => {
-        if (!ref.current) return;
-        const scrollAmount = direction === 'left' ? -300 : 300;
-        ref.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-    };
-
-    // Показывать/прятать кнопки в зависимости от позиции скролла
-    const updateScrollButtons = (ref: React.RefObject<HTMLDivElement>, leftBtnId: string, rightBtnId: string) => {
-        if (!ref.current) return;
-        const el = ref.current;
-        const leftBtn  = document.getElementById(leftBtnId);
-        const rightBtn = document.getElementById(rightBtnId);
-
-        if (!leftBtn || !rightBtn) return;
-
-        if (el.scrollLeft <= 0) {
-            leftBtn.style.opacity = '0';
-            leftBtn.style.pointerEvents = 'none';
-        } else {
-            leftBtn.style.opacity = '1';
-            leftBtn.style.pointerEvents = 'auto';
+    // Фильтрация демонстрационных данных по поиску.
+    const filteredFullRows = useMemo(() => {
+        const normalized = searchValue.trim().toLowerCase();
+        if (!normalized) {
+            return FULL_ROWS;
         }
 
-        if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 1) {
-            rightBtn.style.opacity = '0';
-            rightBtn.style.pointerEvents = 'none';
-        } else {
-            rightBtn.style.opacity = '1';
-            rightBtn.style.pointerEvents = 'auto';
+        return FULL_ROWS.filter((row) => {
+            const haystack = `${row.code} ${row.name} ${row.status} ${row.owner} ${row.note}`.toLowerCase();
+            return haystack.includes(normalized);
+        });
+    }, [searchValue]);
+
+    const filteredManRows = useMemo(() => {
+        const normalized = searchValue.trim().toLowerCase();
+        if (!normalized) {
+            return MANUFACTURE_ROWS;
         }
+
+        return MANUFACTURE_ROWS.filter((row) => {
+            const haystack = `${row.code} ${row.name} ${row.status} ${row.workshop}`.toLowerCase();
+            return haystack.includes(normalized);
+        });
+    }, [searchValue]);
+
+    const filteredPurchaseRows = useMemo(() => {
+        const normalized = searchValue.trim().toLowerCase();
+        if (!normalized) {
+            return PURCHASE_ROWS;
+        }
+
+        return PURCHASE_ROWS.filter((row) => {
+            const haystack = `${row.code} ${row.name} ${row.status} ${row.supplier}`.toLowerCase();
+            return haystack.includes(normalized);
+        });
+    }, [searchValue]);
+
+    // Обновление доступности кнопок прокрутки без прямых DOM-манипуляций.
+    const recalcScrollState = (tab: TabKey, element: HTMLDivElement | null) => {
+        if (!element) {
+            return;
+        }
+
+        const canLeft = element.scrollLeft > 0;
+        const canRight = element.scrollLeft + element.clientWidth < element.scrollWidth - 1;
+
+        setScrollMap((prev) => ({
+            ...prev,
+            [tab]: { canLeft, canRight }
+        }));
     };
 
-    useEffect(() => {
-        const refs = [
-            { ref: fullScrollRef,   left: 'scrollLeftFull',   right: 'scrollRightFull'   },
-            { ref: manufScrollRef,  left: 'scrollLeftManuf',  right: 'scrollRightManuf'  },
-            { ref: purchScrollRef,  left: 'scrollLeftPurch',  right: 'scrollRightPurch'  },
-        ];
+    // Прокрутка таблицы влево/вправо.
+    const handleScrollBy = (tab: TabKey, delta: number) => {
+        const container =
+            tab === 'full' ? fullRef.current : tab === 'manufacture' ? manufactureRef.current : purchaseRef.current;
+        if (!container) {
+            return;
+        }
 
-        const listeners: Array<() => void> = [];
+        container.scrollBy({ left: delta, behavior: 'smooth' });
 
-        refs.forEach(({ ref, left, right }) => {
-            if (!ref.current) return;
+        // Через небольшую задержку пересчитываем доступность кнопок после анимации.
+        window.setTimeout(() => {
+            recalcScrollState(tab, container);
+        }, 180);
+    };
 
-            const handler = () => updateScrollButtons(ref, left, right);
-            ref.current.addEventListener('scroll', handler);
-            listeners.push(() => ref.current?.removeEventListener('scroll', handler));
-
-            // Первоначальная проверка
-            setTimeout(handler, 100);
-        });
-
-        // При переключении вкладки — обновляем видимость кнопок
-        const tabShownHandler = () => {
-            setTimeout(() => {
-                refs.forEach(({ ref, left, right }) => updateScrollButtons(ref, left, right));
-            }, 150);
-        };
-
-        document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(btn => {
-            btn.addEventListener('shown.bs.tab', tabShownHandler);
-            listeners.push(() => btn.removeEventListener('shown.bs.tab', tabShownHandler));
-        });
-
-        // Cleanup
-        return () => {
-            listeners.forEach(fn => fn());
-        };
-    }, []);
-
-    // Переключение тёмной темы
-    useEffect(() => {
-        document.body.classList.toggle('bg-dark', darkMode);
-        document.body.classList.toggle('text-light', darkMode);
-    }, [darkMode]);
+    const wrapperClassName = `container-fluid py-4 ${darkMode ? 'bg-dark text-light' : 'bg-light'}`;
 
     return (
-        <div className={`container-fluid py-4 ${darkMode ? 'bg-dark text-light' : 'bg-light'}`} title="Ведомость оборудования и материалов — основной экран BPM-ERP">
-
-            {/* Верхняя панель с поиском, фильтрами, кнопками */}
+        <div className={wrapperClassName} title="Ведомость оборудования и материалов: основной экран с вкладками и таблицами">
             <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-                <h2 className="mb-0" title="Заголовок ведомости">Ведомость оборудования и материалов № 1308</h2>
+                <h2 className="mb-0" title="Название ведомости и номер демонстрационного документа">
+                    Ведомость оборудования и материалов № 1308
+                </h2>
 
-                <div className="d-flex gap-2 align-items-center">
-                    <div className="input-group" style={{ width: '280px' }}>
-            <span className="input-group-text bg-transparent border-end-0" title="Поиск по ведомости">
+                <div className="d-flex gap-2 align-items-center flex-wrap">
+                    <div className="input-group" style={{ width: '320px' }}>
+            <span className="input-group-text bg-transparent border-end-0" title="Иконка быстрого поиска по таблицам">
               <Search size={18} />
             </span>
                         <input
                             type="text"
                             className="form-control border-start-0"
-                            placeholder="Поиск по наименованию, коду, позиции..."
-                            title="Быстрый поиск по всем колонкам"
+                            value={searchValue}
+                            onChange={(event) => setSearchValue(event.target.value)}
+                            placeholder="Поиск по наименованию, коду, статусу, ответственному..."
+                            title="Поле поиска: фильтрует строки во всех вкладках"
                         />
                     </div>
 
-                    <button className="btn btn-outline-secondary" title="Переключить светлая/тёмная тема">
-                        {darkMode ? <Sun size={20} onClick={() => setDarkMode(false)} /> : <Moon size={20} onClick={() => setDarkMode(true)} />}
+                    <button
+                        type="button"
+                        className="btn btn-outline-secondary"
+                        onClick={() => setDarkMode((prev) => !prev)}
+                        title="Переключить светлую/тёмную тему интерфейса"
+                    >
+                        {darkMode ? <Sun size={20} /> : <Moon size={20} />}
                     </button>
 
-                    <button className="btn btn-outline-primary" title="Создать новую позицию в ведомости">
-                        <Plus size={18} className="me-1" /> Добавить
+                    <button
+                        type="button"
+                        className="btn btn-outline-primary"
+                        title="Добавить новую позицию в ведомость (демо-кнопка)"
+                    >
+                        <Plus size={18} className="me-1" />
+                        Добавить
                     </button>
 
-                    <div className="btn-group">
-                        <button className="btn btn-outline-success" title="Экспорт ведомости в Excel / PDF">
-                            <Download size={18} className="me-1" /> Экспорт
+                    <div className="btn-group" role="group" aria-label="Экспорт и импорт" title="Группа действий экспорта и импорта">
+                        <button
+                            type="button"
+                            className="btn btn-outline-success"
+                            title="Экспортировать ведомость в Excel или PDF (демо-кнопка)"
+                        >
+                            <Download size={18} className="me-1" />
+                            Экспорт
                         </button>
-                        <button className="btn btn-outline-warning" title="Импорт позиций из Excel">
-                            <Upload size={18} className="me-1" /> Импорт
+                        <button
+                            type="button"
+                            className="btn btn-outline-warning"
+                            title="Импортировать позиции из Excel (демо-кнопка)"
+                        >
+                            <Upload size={18} className="me-1" />
+                            Импорт
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* Вкладки */}
-            <ul className="nav nav-tabs mb-4" id="vedomostTabs" role="tablist">
+            <ul className="nav nav-tabs mb-4" role="tablist" title="Навигация по разделам ведомости">
                 <li className="nav-item" role="presentation">
                     <button
-                        className={`nav-link ${activeTab === 'full' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('full')}
-                        data-bs-toggle="tab"
-                        data-bs-target="#full"
                         type="button"
                         role="tab"
-                        title="Полная ведомость — все позиции"
+                        className={`nav-link ${activeTab === 'full' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('full')}
+                        title="Открыть вкладку полной ведомости"
                     >
                         Полная ведомость
                     </button>
                 </li>
                 <li className="nav-item" role="presentation">
                     <button
-                        className={`nav-link ${activeTab === 'manufacture' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('manufacture')}
-                        data-bs-toggle="tab"
-                        data-bs-target="#manufacture"
                         type="button"
                         role="tab"
-                        title="Позиции, изготавливаемые собственными силами"
+                        className={`nav-link ${activeTab === 'manufacture' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('manufacture')}
+                        title="Открыть вкладку изготовляемых позиций"
                     >
                         Изготовление
                     </button>
                 </li>
                 <li className="nav-item" role="presentation">
                     <button
-                        className={`nav-link ${activeTab === 'purchase' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('purchase')}
-                        data-bs-toggle="tab"
-                        data-bs-target="#purchase"
                         type="button"
                         role="tab"
-                        title="Позиции, закупаемые у поставщиков"
+                        className={`nav-link ${activeTab === 'purchase' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('purchase')}
+                        title="Открыть вкладку закупаемых позиций"
                     >
                         Закуп
                     </button>
                 </li>
             </ul>
 
-            {/* Контент вкладок */}
-            <div className="tab-content">
-                {/* ─── Вкладка Полная ──────────────────────────────────────── */}
-                <div className={`tab-pane fade ${activeTab === 'full' ? 'show active' : ''}`} id="full" role="tabpanel">
-                    <div className="scroll-container position-relative">
-                        <button
-                            id="scrollLeftFull"
-                            className="scroll-btn left"
-                            onClick={() => scroll('left', fullScrollRef)}
-                            title="Прокрутить влево"
-                        >
-                            <ChevronLeft size={24} />
-                        </button>
+            {activeTab === 'full' && (
+                <section title="Вкладка полной ведомости">
+                    <TableSectionControls
+                        canLeft={scrollMap.full.canLeft}
+                        canRight={scrollMap.full.canRight}
+                        onLeft={() => handleScrollBy('full', -300)}
+                        onRight={() => handleScrollBy('full', 300)}
+                        leftTitle="Прокрутить полную ведомость влево"
+                        rightTitle="Прокрутить полную ведомость вправо"
+                    />
 
-                        <div
-                            ref={fullScrollRef}
-                            id="full-scroll"
-                            className="table-responsive horizontal-scroll-wrapper"
-                            style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}
-                        >
-                            <table className="table table-bordered table-hover table-sm align-middle">
-                                <thead className="table-primary">
-                                <tr>
-                                    <th title="№ позиции в ведомости">№</th>
-                                    <th title="Код позиции по внутренней номенклатуре">Код</th>
-                                    <th title="Наименование оборудования / материала">Наименование</th>
-                                    <th title="Единица измерения">Ед.изм</th>
-                                    <th title="Количество по проекту">Кол-во проект</th>
-                                    <th title="Количество изготовлено">Изготовлено</th>
-                                    <th title="Количество закуплено">Закуплено</th>
-                                    <th title="Остаток к изготовлению / закупке">Остаток</th>
-                                    <th title="Статус позиции">Статус</th>
-                                    <th title="Ответственный за позицию">Ответственный</th>
-                                    <th title="Срок изготовления / поставки">Срок</th>
-                                    <th title="Примечания / отклонения">Примечания</th>
+                    <div
+                        id="table-scroll-full"
+                        className="table-responsive horizontal-scroll-wrapper"
+                        onScroll={(event) => recalcScrollState('full', event.currentTarget)}
+                        ref={(element) => {
+                            fullRef.current = element;
+                            recalcScrollState('full', element);
+                        }}
+                        style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}
+                        title="Горизонтально прокручиваемая таблица полной ведомости"
+                    >
+                        <table className="table table-bordered table-hover table-sm align-middle" title="Таблица полной ведомости">
+                            <thead className="table-primary">
+                            <tr>
+                                <th title="Номер позиции">№</th>
+                                <th title="Внутренний код позиции">Код</th>
+                                <th title="Наименование материала или оборудования">Наименование</th>
+                                <th title="Единица измерения">Ед.изм</th>
+                                <th title="Плановое количество по проекту">Кол-во проект</th>
+                                <th title="Количество, изготовленное на предприятии">Изготовлено</th>
+                                <th title="Количество, закупленное у поставщиков">Закуплено</th>
+                                <th title="Оставшееся количество к закрытию">Остаток</th>
+                                <th title="Текущий статус позиции">Статус</th>
+                                <th title="Ответственный сотрудник">Ответственный</th>
+                                <th title="Плановый срок">Срок</th>
+                                <th title="Комментарий или отклонение">Примечания</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {filteredFullRows.map((row) => (
+                                <tr key={row.id} title={`Строка полной ведомости: позиция ${row.code}`}>
+                                    <td title="Номер позиции">{row.id}</td>
+                                    <td title="Код позиции">{row.code}</td>
+                                    <td title="Наименование позиции">{row.name}</td>
+                                    <td title="Единица измерения">{row.unit}</td>
+                                    <td title="Плановое количество">{row.projectQty}</td>
+                                    <td title="Изготовленное количество">{row.producedQty}</td>
+                                    <td title="Закупленное количество">{row.purchasedQty}</td>
+                                    <td title="Остаток к закрытию">{row.remainQty}</td>
+                                    <td title="Статус позиции">{row.status}</td>
+                                    <td title="Ответственный">{row.owner}</td>
+                                    <td title="Срок выполнения">{row.deadline}</td>
+                                    <td title="Примечание">{row.note}</td>
                                 </tr>
-                                </thead>
-                                <tbody>
-                                <tr>
-                                    <td>1</td>
-                                    <td>1308-001</td>
-                                    <td>Гидроцилиндр подъёма кузова 160×1000</td>
-                                    <td>шт</td>
-                                    <td>4</td>
-                                    <td>2</td>
-                                    <td>0</td>
-                                    <td>2</td>
-                                    <td className="text-warning">В работе</td>
-                                    <td>Иванов И.И.</td>
-                                    <td>15.04.2026</td>
-                                    <td title="Отклонение по срокам — +12 дней">Отклонение +12 дн</td>
-                                </tr>
-                                {/* Здесь можно добавить ещё 20–30 строк для теста прокрутки */}
-                                <tr><td colSpan={12} className="text-center text-muted py-4">... (ещё 48 позиций) ...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <button
-                            id="scrollRightFull"
-                            className="scroll-btn right"
-                            onClick={() => scroll('right', fullScrollRef)}
-                            title="Прокрутить вправо"
-                        >
-                            <ChevronRight size={24} />
-                        </button>
+                            ))}
+                            </tbody>
+                        </table>
                     </div>
-                </div>
+                </section>
+            )}
 
-                {/* ─── Вкладка Изготовление ────────────────────────────────── */}
-                <div className={`tab-pane fade ${activeTab === 'manufacture' ? 'show active' : ''}`} id="manufacture" role="tabpanel">
-                    <div className="scroll-container position-relative">
-                        <button
-                            id="scrollLeftManuf"
-                            className="scroll-btn left"
-                            onClick={() => scroll('left', manufScrollRef)}
-                            title="Прокрутить влево"
-                        >
-                            <ChevronLeft size={24} />
-                        </button>
+            {activeTab === 'manufacture' && (
+                <section title="Вкладка изготовляемых позиций">
+                    <TableSectionControls
+                        canLeft={scrollMap.manufacture.canLeft}
+                        canRight={scrollMap.manufacture.canRight}
+                        onLeft={() => handleScrollBy('manufacture', -300)}
+                        onRight={() => handleScrollBy('manufacture', 300)}
+                        leftTitle="Прокрутить раздел изготовления влево"
+                        rightTitle="Прокрутить раздел изготовления вправо"
+                    />
 
-                        <div
-                            ref={manufScrollRef}
-                            id="manufacture-scroll"
-                            className="table-responsive horizontal-scroll-wrapper"
-                            style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}
-                        >
-                            <table className="table table-bordered table-hover table-sm align-middle">
-                                <thead className="table-success">
-                                <tr>
-                                    <th>№</th>
-                                    <th>Код</th>
-                                    <th>Наименование</th>
-                                    <th>Ед.изм</th>
-                                    <th>Кол-во план</th>
-                                    <th>Изготовлено</th>
-                                    <th>Остаток</th>
-                                    <th>Цех / участок</th>
-                                    <th>Статус</th>
-                                    <th>Плановая дата</th>
-                                    <th>Факт. дата</th>
+                    <div
+                        id="table-scroll-manufacture"
+                        className="table-responsive horizontal-scroll-wrapper"
+                        onScroll={(event) => recalcScrollState('manufacture', event.currentTarget)}
+                        ref={(element) => {
+                            manufactureRef.current = element;
+                            recalcScrollState('manufacture', element);
+                        }}
+                        style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}
+                        title="Горизонтально прокручиваемая таблица изготовления"
+                    >
+                        <table className="table table-bordered table-hover table-sm align-middle" title="Таблица изготовляемых позиций">
+                            <thead className="table-success">
+                            <tr>
+                                <th title="Номер позиции">№</th>
+                                <th title="Код позиции">Код</th>
+                                <th title="Наименование">Наименование</th>
+                                <th title="Единица измерения">Ед.изм</th>
+                                <th title="Плановое количество">Кол-во план</th>
+                                <th title="Изготовленное количество">Изготовлено</th>
+                                <th title="Оставшееся количество">Остаток</th>
+                                <th title="Ответственный цех">Цех / участок</th>
+                                <th title="Статус выполнения">Статус</th>
+                                <th title="Плановая дата">Плановая дата</th>
+                                <th title="Фактическая дата">Факт. дата</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {filteredManRows.map((row) => (
+                                <tr key={row.id} title={`Строка изготовления: позиция ${row.code}`}>
+                                    <td title="Номер позиции">{row.id}</td>
+                                    <td title="Код позиции">{row.code}</td>
+                                    <td title="Наименование позиции">{row.name}</td>
+                                    <td title="Единица измерения">{row.unit}</td>
+                                    <td title="Плановое кличество">{row.planQty}</td>
+                                    <td title="Изготовленное количество">{row.producedQty}</td>
+                                    <td title="Оставшееся количество">{row.remainQty}</td>
+                                    <td title="Цех/участок">{row.workshop}</td>
+                                    <td title="Статус">{row.status}</td>
+                                    <td title="Плановая дата">{row.plannedDate}</td>
+                                    <td title="Фактическая дата">{row.factDate}</td>
                                 </tr>
-                                </thead>
-                                <tbody>
-                                <tr>
-                                    <td>1</td>
-                                    <td>1308-001</td>
-                                    <td>Гидроцилиндр подъёма кузова 160×1000</td>
-                                    <td>шт</td>
-                                    <td>4</td>
-                                    <td>2</td>
-                                    <td>2</td>
-                                    <td>Цех №3</td>
-                                    <td className="text-success">Завершено</td>
-                                    <td>10.03.2026</td>
-                                    <td>—</td>
-                                </tr>
-                                {/* ... */}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <button
-                            id="scrollRightManuf"
-                            className="scroll-btn right"
-                            onClick={() => scroll('right', manufScrollRef)}
-                            title="Прокрутить вправо"
-                        >
-                            <ChevronRight size={24} />
-                        </button>
+                            ))}
+                            </tbody>
+                        </table>
                     </div>
-                </div>
+                </section>
+            )}
 
-                {/* ─── Вкладка Закуп ───────────────────────────────────────── */}
-                <div className={`tab-pane fade ${activeTab === 'purchase' ? 'show active' : ''}`} id="purchase" role="tabpanel">
-                    <div className="scroll-container position-relative">
-                        <button
-                            id="scrollLeftPurch"
-                            className="scroll-btn left"
-                            onClick={() => scroll('left', purchScrollRef)}
-                            title="Прокрутить влево"
-                        >
-                            <ChevronLeft size={24} />
-                        </button>
+            {activeTab === 'purchase' && (
+                <section title="Вкладка закупаемых позиций">
+                    <TableSectionControls
+                        canLeft={scrollMap.purchase.canLeft}
+                        canRight={scrollMap.purchase.canRight}
+                        onLeft={() => handleScrollBy('purchase', -300)}
+                        onRight={() => handleScrollBy('purchase', 300)}
+                        leftTitle="Прокрутить раздел закупа влево"
+                        rightTitle="Прокрутить раздел закупа вправо"
+                    />
 
-                        <div
-                            ref={purchScrollRef}
-                            id="purchase-scroll"
-                            className="table-responsive horizontal-scroll-wrapper"
-                            style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}
-                        >
-                            <table className="table table-bordered table-hover table-sm align-middle">
-                                <thead className="table-info">
-                                <tr>
-                                    <th>№</th>
-                                    <th>Код</th>
-                                    <th>Наименование</th>
-                                    <th>Ед.изм</th>
-                                    <th>Кол-во план</th>
-                                    <th>Заказано</th>
-                                    <th>Поставлено</th>
-                                    <th>Остаток</th>
-                                    <th>Поставщик</th>
-                                    <th>Статус</th>
-                                    <th>Срок поставки</th>
+                    <div
+                        id="table-scroll-purchase"
+                        className="table-responsive horizontal-scroll-wrapper"
+                        onScroll={(event) => recalcScrollState('purchase', event.currentTarget)}
+                        ref={(element) => {
+                            purchaseRef.current = element;
+                            recalcScrollState('purchase', element);
+                        }}
+                        style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}
+                        title="Горизонтально прокручиваемая таблица закупа"
+                    >
+                        <table className="table table-bordered table-hover table-sm align-middle" title="Таблица закупаемых позиций">
+                            <thead className="table-info">
+                            <tr>
+                                <th title="Номер позиции">№</th>
+                                <th title="Код позиции">Код</th>
+                                <th title="Наименование">Наименование</th>
+                                <th title="Единица измерения">Ед.изм</th>
+                                <th title="Плановое количество">Кол-во план</th>
+                                <th title="Заказанное количество">Заказано</th>
+                                <th title="Поставленное количество">Поставлено</th>
+                                <th title="Оставшееся количество">Остаток</th>
+                                <th title="Поставщик">Поставщик</th>
+                                <th title="Статус поставки">Статус</th>
+                                <th title="Срок поставки">Срок поставки</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {filteredPurchaseRows.map((row) => (
+                                <tr key={row.id} title={`Строка закупа: позиция ${row.code}`}>
+                                    <td title="Номер позиции">{row.id}</td>
+                                    <td title="Код позиции">{row.code}</td>
+                                    <td title="Наименование позиции">{row.name}</td>
+                                    <td title="Единица измерения">{row.unit}</td>
+                                    <td title="Плановое количество">{row.planQty}</td>
+                                    <td title="Заказанное количество">{row.orderedQty}</td>
+                                    <td title="Поставленное количество">{row.deliveredQty}</td>
+                                    <td title="Оставшееся количество">{row.remainQty}</td>
+                                    <td title="Поставщик">{row.supplier}</td>
+                                    <td title="Статус">{row.status}</td>
+                                    <td title="Срок поставки">{row.deliveryDate}</td>
                                 </tr>
-                                </thead>
-                                <tbody>
-                                <tr>
-                                    <td>5</td>
-                                    <td>1308-005</td>
-                                    <td>Насос гидравлический 63 л/мин</td>
-                                    <td>шт</td>
-                                    <td>2</td>
-                                    <td>2</td>
-                                    <td>0</td>
-                                    <td>2</td>
-                                    <td>ООО "ГидроТех"</td>
-                                    <td className="text-warning">Ожидание</td>
-                                    <td>20.03.2026</td>
-                                </tr>
-                                {/* ... */}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <button
-                            id="scrollRightPurch"
-                            className="scroll-btn right"
-                            onClick={() => scroll('right', purchScrollRef)}
-                            title="Прокрутить вправо"
-                        >
-                            <ChevronRight size={24} />
-                        </button>
+                            ))}
+                            </tbody>
+                        </table>
                     </div>
-                </div>
-            </div>
+                </section>
+            )}
+        </div>
+    );
+}
 
-            {/* Стили для кнопок прокрутки */}
-            <style>{`
-        .scroll-container {
-          position: relative;
-        }
-        .scroll-btn {
-          position: absolute;
-          top: 50%;
-          transform: translateY(-50%);
-          z-index: 10;
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background: rgba(0,0,0,0.4);
-          color: white;
-          border: none;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          opacity: 0.7;
-          transition: opacity 0.2s;
-        }
-        .scroll-btn:hover { opacity: 1; }
-        .scroll-btn.left  { left: 8px; }
-        .scroll-btn.right { right: 8px; }
-        .horizontal-scroll-wrapper {
-          max-width: 100%;
-          overflow-x: auto;
-          scrollbar-width: thin;
-        }
-        .horizontal-scroll-wrapper::-webkit-scrollbar {
-          height: 8px;
-        }
-        .horizontal-scroll-wrapper::-webkit-scrollbar-thumb {
-          background: #888;
-          border-radius: 4px;
-        }
-        .horizontal-scroll-wrapper::-webkit-scrollbar-thumb:hover {
-          background: #555;
-        }
-      `}</style>
+type TableSectionControlsProps = {
+    canLeft: boolean;
+    canRight: boolean;
+    onLeft: () => void;
+    onRight: () => void;
+    leftTitle: string;
+    rightTitle: string;
+};
+
+function TableSectionControls(props: TableSectionControlsProps) {
+    return (
+        <div className="d-flex justify-content-end gap-2 mb-2" title="Панель горизонтальной прокрутки таблицы">
+            <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={props.onLeft}
+                disabled={!props.canLeft}
+                title={props.leftTitle}
+            >
+                <ChevronLeft size={18} />
+            </button>
+            <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={props.onRight}
+                disabled={!props.canRight}
+                title={props.rightTitle}
+            >
+                <ChevronRight size={18} />
+            </button>
         </div>
     );
 }
