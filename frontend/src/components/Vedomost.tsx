@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     ChevronLeft,
     ChevronRight,
@@ -175,6 +175,7 @@ export default function Vedomost() {
         manufacture: { canLeft: false, canRight: true },
         purchase: { canLeft: false, canRight: true }
     });
+
     const fullRef = useRef<HTMLDivElement | null>(null);
     const manufactureRef = useRef<HTMLDivElement | null>(null);
     const purchaseRef = useRef<HTMLDivElement | null>(null);
@@ -216,6 +217,19 @@ export default function Vedomost() {
         });
     }, [searchValue]);
 
+    // Получение ref-элемента активной вкладки.
+    const getContainerByTab = (tab: TabKey) => {
+        if (tab === 'full') {
+            return fullRef.current;
+        }
+
+        if (tab === 'manufacture') {
+            return manufactureRef.current;
+        }
+
+        return purchaseRef.current;
+    };
+
     // Обновление доступности кнопок прокрутки без прямых DOM-манипуляций.
     const recalcScrollState = (tab: TabKey, element: HTMLDivElement | null) => {
         if (!element) {
@@ -225,16 +239,33 @@ export default function Vedomost() {
         const canLeft = element.scrollLeft > 0;
         const canRight = element.scrollLeft + element.clientWidth < element.scrollWidth - 1;
 
-        setScrollMap((prev) => ({
-            ...prev,
-            [tab]: { canLeft, canRight }
-        }));
+        setScrollMap((prev) => {
+            const current = prev[tab];
+            if (current.canLeft === canLeft && current.canRight === canRight) {
+                return prev;
+            }
+
+            return {
+                ...prev,
+                [tab]: { canLeft, canRight }
+            };
+        });
     };
+
+    // При смене вкладки пересчитываем состояние кнопок после рендера.
+    useEffect(() => {
+        const timerId = window.setTimeout(() => {
+            recalcScrollState(activeTab, getContainerByTab(activeTab));
+        }, 0);
+
+        return () => {
+            window.clearTimeout(timerId);
+        };
+    }, [activeTab]);
 
     // Прокрутка таблицы влево/вправо.
     const handleScrollBy = (tab: TabKey, delta: number) => {
-        const container =
-            tab === 'full' ? fullRef.current : tab === 'manufacture' ? manufactureRef.current : purchaseRef.current;
+        const container = getContainerByTab(tab);
         if (!container) {
             return;
         }
@@ -361,10 +392,7 @@ export default function Vedomost() {
                         id="table-scroll-full"
                         className="table-responsive horizontal-scroll-wrapper"
                         onScroll={(event) => recalcScrollState('full', event.currentTarget)}
-                        ref={(element) => {
-                            fullRef.current = element;
-                            recalcScrollState('full', element);
-                        }}
+                        ref={fullRef}
                         style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}
                         title="Горизонтально прокручиваемая таблица полной ведомости"
                     >
@@ -380,7 +408,7 @@ export default function Vedomost() {
                                 <th title="Количество, закупленное у поставщиков">Закуплено</th>
                                 <th title="Оставшееся количество к закрытию">Остаток</th>
                                 <th title="Текущий статус позиции">Статус</th>
-                                <th title="Ответственный сотрудник">Ответственный</th>
+                                <th title="тветственный сотрудник">Ответственный</th>
                                 <th title="Плановый срок">Срок</th>
                                 <th title="Комментарий или отклонение">Примечания</th>
                             </tr>
@@ -423,10 +451,7 @@ export default function Vedomost() {
                         id="table-scroll-manufacture"
                         className="table-responsive horizontal-scroll-wrapper"
                         onScroll={(event) => recalcScrollState('manufacture', event.currentTarget)}
-                        ref={(element) => {
-                            manufactureRef.current = element;
-                            recalcScrollState('manufacture', element);
-                        }}
+                        ref={manufactureRef}
                         style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}
                         title="Горизонтально прокручиваемая таблица изготовления"
                     >
@@ -453,7 +478,7 @@ export default function Vedomost() {
                                     <td title="Код позиции">{row.code}</td>
                                     <td title="Наименование позиции">{row.name}</td>
                                     <td title="Единица измерения">{row.unit}</td>
-                                    <td title="Плановое кличество">{row.planQty}</td>
+                                    <td title="Плановое количество">{row.planQty}</td>
                                     <td title="Изготовленное количество">{row.producedQty}</td>
                                     <td title="Оставшееся количество">{row.remainQty}</td>
                                     <td title="Цех/участок">{row.workshop}</td>
@@ -483,10 +508,7 @@ export default function Vedomost() {
                         id="table-scroll-purchase"
                         className="table-responsive horizontal-scroll-wrapper"
                         onScroll={(event) => recalcScrollState('purchase', event.currentTarget)}
-                        ref={(element) => {
-                            purchaseRef.current = element;
-                            recalcScrollState('purchase', element);
-                        }}
+                        ref={purchaseRef}
                         style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}
                         title="Горизонтально прокручиваемая таблица закупа"
                     >
