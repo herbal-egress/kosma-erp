@@ -564,6 +564,7 @@ type TableSectionControlsProps = {
 
 function TableSectionControls(props: TableSectionControlsProps) {
     return (
+        
         <div className="d-flex justify-content-end gap-2 mb-2" title="Панель горизонтальной прокрутки таблицы">
             <button
                 type="button"
