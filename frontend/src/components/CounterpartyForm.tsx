@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Plus, Save, Trash2, X } from 'lucide-react';
+import { validateCounterpartyForm } from '../utils/validation';
 
 type CounterpartyFormData = {
     type: string;
@@ -41,6 +42,7 @@ export default function CounterpartyForm() {
     const [goodsGroups, setGoodsGroups] = useState<string[]>(['']);
     const [dirty, setDirty] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
+    const [validationError, setValidationError] = useState<string>('');
 
     const formRef = useRef<HTMLFormElement>(null);
     const initialSnapshot = useRef<string>('');
@@ -139,11 +141,27 @@ export default function CounterpartyForm() {
     const handleSave = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
+        const errors = validateCounterpartyForm({
+            name: formData.name,
+            inn: formData.inn,
+            kpp: formData.kpp,
+            ogrn: formData.ogrn,
+            email: formData.email,
+            website: formData.website,
+            goodsGroups
+        });
+
+        if (Object.keys(errors).length > 0) {
+            setValidationError(Object.values(errors)[0]);
+            return;
+        }
+
         if (!formRef.current?.checkValidity()) {
             formRef.current?.classList.add('was-validated');
             return;
         }
 
+        setValidationError('');
         alert('Карточка контрагента сохранена (демо-режим)');
         setDirty(false);
         initialSnapshot.current = getSnapshot();
@@ -330,12 +348,11 @@ export default function CounterpartyForm() {
                             <div className="col-md-4" title="Поле юридического адреса">
                                 <div className="form-floating" title="Контейнер поля юридического адреса">
                   <textarea
-                      className="form-control"
+                      className="form-control ui-textarea-sm"
                       name="legalAddress"
                       value={formData.legalAddress}
                       onChange={handleInputChange}
                       placeholder=" "
-                      style={{ height: '80px' }}
                       title="Введите юридический адрес"
                   />
                                     <label title="Подпись юридического адреса">Юридический адрес</label>
@@ -345,12 +362,11 @@ export default function CounterpartyForm() {
                             <div className="col-md-4" title="Поле фактического адреса">
                                 <div className="form-floating" title="Контейнер поля фактического адреса">
                   <textarea
-                      className="form-control"
+                      className="form-control ui-textarea-sm"
                       name="actualAddress"
                       value={formData.actualAddress}
                       onChange={handleInputChange}
                       placeholder=" "
-                      style={{ height: '80px' }}
                       title="Введите фактический адрес"
                   />
                                     <label title="Подпись фактического адреса">Фактический адрес</label>
@@ -360,12 +376,11 @@ export default function CounterpartyForm() {
                             <div className="col-md-4" title="Поле почтового адреса">
                                 <div className="form-floating" title="Контейнер поля почтового адреса">
                   <textarea
-                      className="form-control"
+                      className="form-control ui-textarea-sm"
                       name="postalAddress"
                       value={formData.postalAddress}
                       onChange={handleInputChange}
                       placeholder=" "
-                      style={{ height: '80px' }}
                       title="Введите почтовый адрес"
                   />
                                     <label title="Подпись почтового адреса">Почтовый адрес</label>
@@ -437,12 +452,11 @@ export default function CounterpartyForm() {
                             <div className="col-md-6" title="Поле комментария">
                                 <div className="form-floating" title="Контейнер поля комментария">
                   <textarea
-                      className="form-control"
+                      className="form-control ui-textarea-xl"
                       name="comment"
                       value={formData.comment}
                       onChange={handleInputChange}
                       placeholder=" "
-                      style={{ height: '120px' }}
                       maxLength={1000}
                       title="Введите внутренний комментарий по контрагенту"
                   />
@@ -464,14 +478,18 @@ export default function CounterpartyForm() {
                                 <Save size={18} className="me-2" /> Сохранить
                             </button>
                         </div>
+                        {validationError && (
+                            <div className="alert alert-danger mt-3" title="Сообщение об ошибке валидации">
+                                {validationError}
+                            </div>
+                        )}
                     </form>
                 </div>
             </div>
 
             {showConfirm && (
                 <div
-                    className="modal fade show"
-                    style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}
+                    className="modal fade show ui-modal-overlay"
                     tabIndex={-1}
                     title="Модальное окно подтверждения закрытия"
                 >

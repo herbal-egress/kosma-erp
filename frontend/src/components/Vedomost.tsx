@@ -288,7 +288,7 @@ export default function Vedomost() {
                 </h2>
 
                 <div className="d-flex gap-2 align-items-center flex-wrap">
-                    <div className="input-group" style={{ width: '320px' }}>
+                    <div className="input-group ui-input-group-wide">
             <span className="input-group-text bg-transparent border-end-0" title="Иконка быстрого поиска по таблицам">
               <Search size={18} />
             </span>
@@ -390,10 +390,9 @@ export default function Vedomost() {
 
                     <div
                         id="table-scroll-full"
-                        className="table-responsive horizontal-scroll-wrapper"
                         onScroll={(event) => recalcScrollState('full', event.currentTarget)}
                         ref={fullRef}
-                        style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}
+                        className="table-responsive horizontal-scroll-wrapper ui-scroll-x"
                         title="Горизонтально прокручиваемая таблица полной ведомости"
                     >
                         <table className="table table-bordered table-hover table-sm align-middle" title="Таблица полной ведомости">
@@ -408,7 +407,7 @@ export default function Vedomost() {
                                 <th title="Количество, закупленное у поставщиков">Закуплено</th>
                                 <th title="Оставшееся количество к закрытию">Остаток</th>
                                 <th title="Текущий статус позиции">Статус</th>
-                                <th title="тветственный сотрудник">Ответственный</th>
+                                <th title="Ответственный сотрудник">Ответственный</th>
                                 <th title="Плановый срок">Срок</th>
                                 <th title="Комментарий или отклонение">Примечания</th>
                             </tr>
@@ -449,11 +448,10 @@ export default function Vedomost() {
 
                     <div
                         id="table-scroll-manufacture"
-                        className="table-responsive horizontal-scroll-wrapper"
+                        className="table-responsive horizontal-scroll-wrapper ui-scroll-x"
                         onScroll={(event) => recalcScrollState('manufacture', event.currentTarget)}
                         ref={manufactureRef}
-                        style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}
-                        title="Горизонтально прокручиваемая таблица изготовления"
+                        title="Горизонтально прокручиваеая таблица изготовления"
                     >
                         <table className="table table-bordered table-hover table-sm align-middle" title="Таблица изготовляемых позиций">
                             <thead className="table-success">
@@ -506,10 +504,9 @@ export default function Vedomost() {
 
                     <div
                         id="table-scroll-purchase"
-                        className="table-responsive horizontal-scroll-wrapper"
+                        className="table-responsive horizontal-scroll-wrapper ui-scroll-x"
                         onScroll={(event) => recalcScrollState('purchase', event.currentTarget)}
                         ref={purchaseRef}
-                        style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}
                         title="Горизонтально прокручиваемая таблица закупа"
                     >
                         <table className="table table-bordered table-hover table-sm align-middle" title="Таблица закупаемых позиций">
@@ -564,7 +561,6 @@ type TableSectionControlsProps = {
 
 function TableSectionControls(props: TableSectionControlsProps) {
     return (
-        
         <div className="d-flex justify-content-end gap-2 mb-2" title="Панель горизонтальной прокрутки таблицы">
             <button
                 type="button"

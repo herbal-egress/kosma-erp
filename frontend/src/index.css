@@ -25,4 +25,33 @@ body {
     opacity: 0.7;
 }
 
-/* ... (добавьте любые другие глобальные стили из ваших HTML, если нужно) */
+/* Утилиты для выноса inline-стилей из компонентов */
+.ui-input-group-wide {
+    width: 320px;
+}
+
+.ui-scroll-x {
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+.ui-textarea-sm {
+    height: 80px;
+}
+
+.ui-textarea-md {
+    height: 85px;
+}
+
+.ui-textarea-lg {
+    height: 100px;
+}
+
+.ui-textarea-xl {
+    height: 120px;
+}
+
+.ui-modal-overlay {
+    display: block;
+    background-color: rgba(0, 0, 0, 0.5);
+}

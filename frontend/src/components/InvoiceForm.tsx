@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Save, X, Plus, Trash2 } from 'lucide-react';
+import { validateInvoiceForm } from '../utils/validation';
 
 type InvoiceItem = {
     description: string;
@@ -45,6 +46,7 @@ export default function InvoiceForm() {
     });
 
     const [dirty, setDirty] = useState(false);
+    const [validationError, setValidationError] = useState<string>('');
 
     // Предупреждение при закрытии вкладки с несохранёнными изменениями.
     useEffect(() => {
@@ -129,6 +131,29 @@ export default function InvoiceForm() {
 
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+
+        const errors = validateInvoiceForm({
+            invoiceNumber: formData.invoiceNumber,
+            issueDate: formData.issueDate,
+            dueDate: formData.dueDate,
+            payer: formData.payer,
+            items: formData.items.map((item) => ({
+                description: item.description,
+                quantity: item.quantity,
+                price: item.price
+            })),
+            paymentSchedule: formData.paymentSchedule.map((stage) => ({
+                date: stage.date,
+                percent: stage.percent
+            }))
+        });
+
+        if (Object.keys(errors).length > 0) {
+            setValidationError(Object.values(errors)[0]);
+            return;
+        }
+
+        setValidationError('');
         alert('Счёт сохранён (демо-режим)');
         setDirty(false);
     };
@@ -335,6 +360,11 @@ export default function InvoiceForm() {
                                 <Save size={18} className="me-2" /> Сохранить счёт
                             </button>
                         </div>
+                        {validationError && (
+                            <div className="alert alert-danger mt-3" title="Сообщение об ошибке валидации">
+                                {validationError}
+                            </div>
+                        )}
                     </form>
                 </div>
             </div>

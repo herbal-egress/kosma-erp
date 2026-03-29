@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Save, X } from 'lucide-react';
+import { validatePayerForm } from '../utils/validation';
 
 type PayerFormData = {
     legalForm: string;
@@ -57,6 +58,7 @@ export default function PayerForm() {
     const [formData, setFormData] = useState<PayerFormData>(initialFormData);
     const [dirty, setDirty] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
+    const [validationError, setValidationError] = useState<string>('');
 
     const formRef = useRef<HTMLFormElement>(null);
     const initialSnapshot = useRef<string>('');
@@ -123,11 +125,29 @@ export default function PayerForm() {
     };
 
     const handleSave = () => {
+        const errors = validatePayerForm({
+            shortName: formData.shortName,
+            fullName: formData.fullName,
+            director: formData.director,
+            legalAddress: formData.legalAddress,
+            inn: formData.inn,
+            kpp: formData.kpp,
+            ogrn: formData.ogrn,
+            bik: formData.bik,
+            website: formData.website
+        });
+
+        if (Object.keys(errors).length > 0) {
+            setValidationError(Object.values(errors)[0]);
+            return;
+        }
+
         if (!formRef.current?.checkValidity()) {
             formRef.current?.classList.add('was-validated');
             return;
         }
 
+        setValidationError('');
         alert('Карточка плательщика сохранена (демо)');
         setDirty(false);
         initialSnapshot.current = getSnapshot();
@@ -231,8 +251,7 @@ export default function PayerForm() {
                       name="legalAddress"
                       value={formData.legalAddress}
                       onChange={handleChange}
-                      className="form-control"
-                      style={{ height: '85px' }}
+                      className="form-control ui-textarea-md"
                       required
                       title="Введите юридический адрес"
                   />
@@ -246,8 +265,7 @@ export default function PayerForm() {
                       name="postalAddress"
                       value={formData.postalAddress}
                       onChange={handleChange}
-                      className="form-control"
-                      style={{ height: '85px' }}
+                      className="form-control ui-textarea-md"
                       title="Введите почтовый адрес"
                   />
                                     <label title="Подпись почтового адреса">Почтовый адрес</label>
@@ -255,13 +273,12 @@ export default function PayerForm() {
                             </div>
 
                             <div className="col-md-6" title="Поле фактического адреса">
-                                <div className="form-floating" title="Контейнер фктического адреса">
+                                <div className="form-floating" title="Контейнер фактического адреса">
                   <textarea
                       name="actualAddress"
                       value={formData.actualAddress}
                       onChange={handleChange}
-                      className="form-control"
-                      style={{ height: '85px' }}
+                      className="form-control ui-textarea-md"
                       title="Введите фактический адрес"
                   />
                                     <label title="Подпись фактического адреса">Фактический адрес</label>
@@ -274,8 +291,7 @@ export default function PayerForm() {
                       name="deliveryAddress"
                       value={formData.deliveryAddress}
                       onChange={handleChange}
-                      className="form-control"
-                      style={{ height: '85px' }}
+                      className="form-control ui-textarea-md"
                       title="Введите адрес доставки документов или грузов"
                   />
                                     <label title="Подпись адреса доставки">Адрес доставки</label>
@@ -484,12 +500,16 @@ export default function PayerForm() {
                   name="comment"
                   value={formData.comment}
                   onChange={handleChange}
-                  className="form-control"
-                  style={{ height: '100px' }}
+                  className="form-control ui-textarea-lg"
                   title="Введите дополнительный комментарий"
               />
                             <label title="Подпись поля комментария">Комментарий</label>
                         </div>
+                        {validationError && (
+                            <div className="alert alert-danger mt-3" title="Сообщение об ошибке валидации">
+                                {validationError}
+                            </div>
+                        )}
                     </form>
 
                     <div className="d-flex gap-3 justify-content-end mt-5" title="Панель действий формы">
@@ -505,8 +525,7 @@ export default function PayerForm() {
 
             {showConfirm && (
                 <div
-                    className="modal fade show"
-                    style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}
+                    className="modal fade show ui-modal-overlay"
                     tabIndex={-1}
                     title="Модальное окно подтверждения закрытия"
                 >
@@ -516,7 +535,7 @@ export default function PayerForm() {
                                 <h5 className="modal-title" title="Заголовок предупреждения">Несохранённые изменения</h5>
                                 <button type="button" className="btn-close" onClick={cancelClose} title="Закрыть окно предупреждения" />
                             </div>
-                            <div className="modal-body" title="Описание действия закрытия">
+                            <div className="modal-body" title="писание действия закрытия">
                                 В форме есть несохранённые изменения. Закрыть без сохранения?
                             </div>
                             <div className="modal-footer" title="Кнопки выбора действия">
