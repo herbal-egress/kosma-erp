@@ -21,7 +21,7 @@ concurrency:
 jobs:
   maven-clean-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -34,14 +34,16 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Print tool versions
+      - name: Show tool versions
         run: |
           java -version
           mvn -version
 
+      # Важно: именно clean test (а не просто test)
       - name: Run Maven clean test
         run: mvn -B -ntp clean test
 
+      # Удобно для диагностики падений в CI
       - name: Upload surefire reports on failure
         if: failure()
         uses: actions/upload-artifact@v4
